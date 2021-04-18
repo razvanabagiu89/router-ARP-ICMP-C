@@ -70,57 +70,54 @@ int parse_rtable(struct route_table_entry *rtable, char *filenamein) {
 }
 
 // used on qsort
-int comparator(const void *a, const void *b) {
+int comparator(const void *p1, const void *p2) {
 
-	__u32 l = ((struct route_table_entry *)a)->prefix;
-	__u32 r = ((struct route_table_entry *)b)->prefix;
-	return (r - l);
+	const struct route_table_entry *e1 = p1;
+	const struct route_table_entry *e2 = p2;
+
+	if (e1->prefix < e2->prefix)
+		return -1;
+	else if (e1->prefix > e2->prefix)
+		return 1;
+	else if (e1->mask < e2->mask)
+		return -1;
+	else { 
+		return 1;
+	}
 }
 
 // binary search implementation for rtable
-struct route_table_entry* binary_search(struct route_table_entry *rtable, int l, int r, __u32 dest_ip) {
+int binary_search(int l, int r, __u32 dest_ip, struct route_table_entry *rtable) {
 
-    if (r >= l) {
+	if (l <= r) {
+		int mid = (l + r)/2;
 
-        int mid = l + (r - l) / 2;
-  
-        if (rtable[mid].prefix == (dest_ip & rtable[mid].mask))
-            return &rtable[mid];
+		if ((rtable[mid].mask & dest_ip) == rtable[mid].prefix) {
 
-        if (rtable[mid].prefix > (dest_ip & rtable[mid].mask))
-            return binary_search(rtable, l, mid - 1, dest_ip);
-  
-        return binary_search(rtable, mid + 1, r, dest_ip);
-    }
-    return NULL;
+			while((rtable[mid].mask & dest_ip) == rtable[mid].prefix) {
+				mid++;
+			}
+		return mid - 1;
+		}
+		else if ((rtable[mid].mask & dest_ip) < rtable[mid].prefix) {
+			return binary_search(l, mid - 1, dest_ip, rtable);
+		}
+		else {
+			return binary_search(mid + 1, r, dest_ip, rtable);
+		}
+  	}
+   return -1;
 }
 
-/*
-primeste un vector sortat si folosind binary search cauta best_match - prima aparitie
+struct route_table_entry *get_best_route(__u32 dest_ip, struct route_table_entry *rtable, int rtable_size) {
 
-*/
-// struct route_table_entry *get_best_route(__u32 dest_ip, struct route_table_entry *rtable, int rtable_size) {
-
-// 	return binary_search(rtable, 0, rtable_size, dest_ip);
-// }
-
-struct route_table_entry* get_best_route(__u32 dest_ip, struct route_table_entry *rtable, int rtable_size) {
-    
-    struct route_table_entry *best_match = NULL;
-
-    for(int i = 0; i < rtable_size; i++) {
-
-        if((dest_ip & rtable[i].mask) == rtable[i].prefix) {
-
-            if(best_match == NULL){
-                best_match = &rtable[i];
-            }
-            else if (rtable[i].mask > best_match->mask) {
-                best_match = &rtable[i];
-            }
-        }
-    }
-    return best_match;
+	int pos = binary_search(0, rtable_size - 1, dest_ip, rtable);
+	if(pos == -1) {
+		return NULL;
+	}
+	else {
+		return &rtable[pos];
+	}
 }
 
 struct arp_entry* get_arp_entry(__u32 ip, struct arp_entry *arp_table, int arp_table_size) {
@@ -143,10 +140,9 @@ int main(int argc, char *argv[]) {
 	struct route_table_entry *rtable = malloc(sizeof(struct route_table_entry) * 65000);
 	int rtable_size = parse_rtable(rtable, argv[1]);
 
-	/*
-	sortare descendenta dupa prefix pentru a imbunatati cautarea 
-	qsort((void*)rtable, rtable_size, sizeof(struct route_table_entry), comparator);
-	*/
+	
+	// sortare ascendenta dupa prefix & masca pentru a imbunatati cautarea 
+	qsort(rtable, rtable_size, sizeof(struct route_table_entry), comparator);
 
 	int initial_size = 5;
 	struct arp_entry *arp_table = malloc(sizeof(struct  arp_entry) * initial_size);

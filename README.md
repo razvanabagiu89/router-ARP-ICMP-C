@@ -43,7 +43,7 @@ found in the arp_table, just send the packet.
 
 - print_rtable: used for debug reasons to print the rtable
 
-- parse_rtable: parse the rtable coming from the filenamein arg
+- parse_rtable: parse the rtable coming from the filenamein argument
 
 - comparator: used in qsort for sorting the rtable in order to get a better
 search complexity
